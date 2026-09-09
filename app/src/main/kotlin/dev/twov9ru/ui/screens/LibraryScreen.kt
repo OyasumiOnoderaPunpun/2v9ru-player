@@ -1,5 +1,7 @@
 package dev.twov9ru.ui.screens
 
+import androidx.media3.common.MediaItem
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -109,8 +111,7 @@ fun LibraryScreen(
         Spacer(Modifier.height(16.dp))
 
         // ── Tracks Grid ────────────────────────────────────────────────────
-        // Placeholder data — replaced by Room/MediaStore in Phase 2
-        val placeholderItems = remember { generatePlaceholderTracks(24) }
+        val allTracks by playerViewModel.smartPlaylistRepo.getAllTracks().collectAsState(initial = emptyList())
 
         LazyVerticalGrid(
             columns         = GridCells.Fixed(columns),
@@ -124,8 +125,11 @@ fun LibraryScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(placeholderItems, key = { it.id }) { track ->
-                TrackGridCard(track = track, onClick = { /* play via VM */ })
+            items(allTracks.size, key = { allTracks[it].mediaId }) { index ->
+                TrackGridCard(
+                    track = allTracks[index],
+                    onClick = { playerViewModel.playTracks(allTracks, index) }
+                )
             }
         }
     }
@@ -147,7 +151,8 @@ private fun SmartPlaylistChip(icon: ImageVector, label: String, tint: Color) {
 }
 
 @Composable
-private fun TrackGridCard(track: PlaceholderTrack, onClick: () -> Unit) {
+private fun TrackGridCard(track: MediaItem, onClick: () -> Unit) {
+    val metadata = track.mediaMetadata
     Card(
         onClick   = onClick,
         shape     = RoundedCornerShape(16.dp),
@@ -165,12 +170,12 @@ private fun TrackGridCard(track: PlaceholderTrack, onClick: () -> Unit) {
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
-                        .data(track.albumArtUri)
+                        .data(metadata.artworkUri)
                         .size(128) // aggressive downsampling
                         .scale(Scale.FILL)
                         .crossfade(true)
                         .build(),
-                    contentDescription = track.title,
+                    contentDescription = metadata.title?.toString(),
                     contentScale       = ContentScale.Crop,
                     modifier           = Modifier.fillMaxSize()
                 )
@@ -179,14 +184,14 @@ private fun TrackGridCard(track: PlaceholderTrack, onClick: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text     = track.title,
+                    text     = metadata.title?.toString() ?: "Unknown",
                     style    = MaterialTheme.typography.titleSmall,
                     color    = Snow,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text     = track.artist,
+                    text     = metadata.artist?.toString() ?: "Unknown Artist",
                     style    = MaterialTheme.typography.labelMedium,
                     color    = Ash,
                     maxLines = 1,
@@ -195,21 +200,4 @@ private fun TrackGridCard(track: PlaceholderTrack, onClick: () -> Unit) {
             }
         }
     }
-}
-
-// ── Placeholder data (Phase 2: replace with Room DAO) ─────────────────────
-private data class PlaceholderTrack(
-    val id:          String,
-    val title:       String,
-    val artist:      String,
-    val albumArtUri: String?
-)
-
-private fun generatePlaceholderTracks(count: Int) = List(count) { i ->
-    PlaceholderTrack(
-        id          = "track_$i",
-        title       = "Track ${i + 1}",
-        artist      = "Artist ${(i / 3) + 1}",
-        albumArtUri = null
-    )
 }

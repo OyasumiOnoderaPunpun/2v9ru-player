@@ -71,6 +71,8 @@ fun NexusDock(
     onSwipeUp:      () -> Unit,
     onLongPress:    () -> Unit,
     onLibraryClick: () -> Unit,
+    onPlayPause:    () -> Unit,
+    onSkipNext:     () -> Unit,
     modifier:       Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -118,8 +120,8 @@ fun NexusDock(
             MiniControls(
                 playerState    = playerState,
                 vertical       = true,
-                onPlayPause    = { /* VM call */ },
-                onSkipNext     = { /* VM call */ }
+                onPlayPause    = onPlayPause,
+                onSkipNext     = onSkipNext
             )
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onLibraryClick) {
@@ -167,8 +169,8 @@ fun NexusDock(
             MiniControls(
                 playerState  = playerState,
                 vertical     = false,
-                onPlayPause  = { /* VM call */ },
-                onSkipNext   = { /* VM call */ }
+                onPlayPause  = onPlayPause,
+                onSkipNext   = onSkipNext
             )
         }
     }

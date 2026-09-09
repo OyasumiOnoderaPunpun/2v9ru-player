@@ -76,6 +76,8 @@ fun NavigationLayout(playerViewModel: PlayerViewModel) {
                     onSwipeUp        = onNexusSwipeUp,
                     onLongPress      = onNexusLongPress,
                     onLibraryClick   = { currentDest = Destination.Library },
+                    onPlayPause      = { playerViewModel.onPlayPause() },
+                    onSkipNext       = { playerViewModel.onSkipNext() },
                     modifier         = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 24.dp)
                 )
                 Box(Modifier.weight(1f)) {
@@ -102,6 +104,8 @@ fun NavigationLayout(playerViewModel: PlayerViewModel) {
                     onSwipeUp      = onNexusSwipeUp,
                     onLongPress    = onNexusLongPress,
                     onLibraryClick = { currentDest = Destination.Library },
+                    onPlayPause    = { playerViewModel.onPlayPause() },
+                    onSkipNext     = { playerViewModel.onSkipNext() },
                     modifier       = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 24.dp)

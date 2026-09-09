@@ -19,6 +19,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import android.graphics.drawable.BitmapDrawable
+import androidx.palette.graphics.Palette
+import androidx.compose.ui.graphics.Color
 
 /** Minimal playback state fed to the UI layer */
 data class PlayerState(
@@ -90,15 +98,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     val metadata = mediaItem?.mediaMetadata
+                    val newArtUri = metadata?.artworkUri?.toString()
+                    if (newArtUri != _playerState.value.albumArtUri) {
+                        extractPalette(newArtUri)
+                    }
                     _playerState.value = _playerState.value.copy(
                         trackTitle = metadata?.title?.toString() ?: "",
                         artistName = metadata?.artist?.toString() ?: "",
                         albumTitle = metadata?.albumTitle?.toString() ?: "",
-                        albumArtUri = metadata?.artworkUri?.toString()
+                        albumArtUri = newArtUri,
+                        durationMs = mediaItem?.mediaMetadata?.extras?.getLong("durationMs") ?: mediaController?.duration?.takeIf { it > 0 } ?: 0L
                     )
                 }
             })
             
+            // Start position ticker
+            startPositionTicker()
+
             // Auto-play recently added tracks if queue is empty for demo purposes
             viewModelScope.launch {
                 smartPlaylistRepo.getRecentlyAdded().collect { items ->
@@ -110,6 +126,48 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }, MoreExecutors.directExecutor())
+    }
+
+    private fun startPositionTicker() {
+        viewModelScope.launch {
+            while (isActive) {
+                mediaController?.let {
+                    if (it.isPlaying) {
+                        _playerState.value = _playerState.value.copy(
+                            positionMs = it.currentPosition,
+                            durationMs = it.duration.takeIf { d -> d > 0 } ?: 0L
+                        )
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    private fun extractPalette(uri: String?) {
+        if (uri == null) {
+            _dynamicPalette.value = DynamicPalette()
+            return
+        }
+        viewModelScope.launch {
+            val request = ImageRequest.Builder(getApplication())
+                .data(uri)
+                .allowHardware(false) // Palette needs software bitmap
+                .size(128) // Small size for fast extraction
+                .build()
+            val result = getApplication<Application>().imageLoader.execute(request)
+            if (result is SuccessResult) {
+                val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                if (bitmap != null) {
+                    val p = Palette.from(bitmap).generate()
+                    _dynamicPalette.value = DynamicPalette(
+                        vibrant = p.vibrantSwatch?.rgb?.let { Color(it) } ?: dev.twov9ru.ui.theme.DefaultVibrant,
+                        muted = p.mutedSwatch?.rgb?.let { Color(it) } ?: dev.twov9ru.ui.theme.DefaultMuted,
+                        dark = p.darkVibrantSwatch?.rgb?.let { Color(it) } ?: dev.twov9ru.ui.theme.DefaultDark
+                    )
+                }
+            }
+        }
     }
 
     override fun onCleared() {
@@ -133,6 +191,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     fun onSeekTo(ms: Long) {
         mediaController?.seekTo(ms)
+    }
+
+    fun playTracks(tracks: List<MediaItem>, startIndex: Int = 0) {
+        mediaController?.setMediaItems(tracks, startIndex, 0L)
+        mediaController?.prepare()
+        mediaController?.play()
     }
 
     fun onToggleFavorite() {
