@@ -2,7 +2,8 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
-  alias(libs.plugins.kotlin.ksp)
+  // KSP enabled in Phase 2 when Room DB is activated
+  // alias(libs.plugins.kotlin.ksp)
 }
 
 android {
@@ -59,6 +60,8 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.compose.material3)
+  implementation(libs.androidx.compose.material.icons.core)
+  implementation(libs.androidx.compose.material.icons.extended)
   debugImplementation(libs.androidx.compose.ui.tooling)
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
@@ -76,10 +79,10 @@ dependencies {
   // Window / Adaptive
   implementation(libs.androidx.window)
 
-  // Room DB
+  // Room DB — KSP annotation processing enabled in Phase 2
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.room.ktx)
-  ksp(libs.androidx.room.compiler)
+  // ksp(libs.androidx.room.compiler)   // Phase 2: enable with KSP plugin
 
   // Palette
   implementation(libs.androidx.palette)

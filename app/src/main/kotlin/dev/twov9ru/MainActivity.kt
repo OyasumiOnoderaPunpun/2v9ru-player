@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.window.core.layout.WindowSizeClass
 import dev.twov9ru.ui.navigation.NavigationLayout
 import dev.twov9ru.ui.theme.DynamicPalette
 import dev.twov9ru.ui.theme.TwoV9RUTheme

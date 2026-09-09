@@ -1,6 +1,5 @@
 package dev.twov9ru.audio
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,19 +8,13 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
 import android.os.Build
-import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dev.twov9ru.MainActivity
 
-private const val CHANNEL_ID   = "2v9ru_playback"
-private const val NOTIFICATION_ID = 1001
+private const val CHANNEL_ID      = "2v9ru_playback"
+private const val NOTIFICATION_ID  = 1001
 
 /**
  * Background playback service using Media3 [MediaSessionService].
@@ -30,7 +23,7 @@ private const val NOTIFICATION_ID = 1001
  * - Hosts the [ExoPlayer] instance configured via [AAudioSinkFactory]
  * - Exposes a [MediaSession] for OS media controls + Bluetooth keys
  * - Handles Audio Focus automatically (ExoPlayer built-in)
- * - Binds hardware AudioEffects (EQ / BassBoost / Virtualizer) in Phase 2
+ * - Binds hardware AudioEffects (EQ / BassBoost / Virtualizer) to audio session
  * - Gapless playback enabled by default in ExoPlayer
  *
  * Phase 2 will add:
@@ -52,15 +45,15 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         createNotificationChannel()
 
-        // Build bit-perfect player via our factory
+        // Build player via our factory (AAudio path, audio focus managed)
         player = AAudioSinkFactory.buildExoPlayer(this)
 
-        // Wire hardware effects to the same audio session
+        // Wire hardware effects to the audio session
         val sessionId = player.audioSessionId
-        if (sessionId != 0 && sessionId != AudioTrackSessionId.UNSET) {
-            equalizer   = Equalizer(0, sessionId).also { it.enabled = false }
-            bassBoost   = BassBoost(0, sessionId).also { it.enabled = false }
-            virtualizer = Virtualizer(0, sessionId).also { it.enabled = false }
+        if (sessionId != 0) {
+            equalizer   = runCatching { Equalizer(0, sessionId).also   { it.enabled = false } }.getOrNull()
+            bassBoost   = runCatching { BassBoost(0, sessionId).also   { it.enabled = false } }.getOrNull()
+            virtualizer = runCatching { Virtualizer(0, sessionId).also { it.enabled = false } }.getOrNull()
         }
 
         mediaSession = MediaSession.Builder(this, player)
@@ -82,26 +75,26 @@ class PlaybackService : MediaSessionService() {
     // ── EQ control (called from DSP sheet via IPC in Phase 2) ─────────────
     fun setEqBandLevel(band: Int, levelMilliBel: Short) {
         equalizer?.let {
-            if (!it.enabled) it.enabled = true
+            it.enabled = true
             it.setBandLevel(band.toShort(), levelMilliBel)
         }
     }
 
     fun setBassBoostStrength(strength: Short) {
         bassBoost?.let {
-            if (!it.enabled) it.enabled = true
+            it.enabled = true
             it.setStrength(strength)
         }
     }
 
     fun setVirtualizerStrength(strength: Short) {
         virtualizer?.let {
-            if (!it.enabled) it.enabled = true
+            it.enabled = true
             it.setStrength(strength)
         }
     }
 
-    // ── Notification & session ─────────────────────────────────────────────
+    // ── Notification channel ───────────────────────────────────────────────
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -121,9 +114,4 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
-}
-
-// Sentinel value for unset audio session IDs
-private object AudioTrackSessionId {
-    const val UNSET = C.AUDIO_SESSION_ID_UNSET
 }

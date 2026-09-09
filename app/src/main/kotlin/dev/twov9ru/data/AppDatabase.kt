@@ -7,6 +7,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import kotlinx.coroutines.flow.Flow
 
 // ── Entities ──────────────────────────────────────────────────────────────
 
@@ -33,40 +34,36 @@ data class TrackEntity(
     val lastPlayedAt: Long    = 0L
 )
 
-// ── DAOs ──────────────────────────────────────────────────────────────────
+// ── DAOs (Phase 2: enable KSP plugin and uncomment @Dao/@Query annotations) ──
 
-@androidx.room.Dao
+// @androidx.room.Dao
 interface TrackDao {
+    // @androidx.room.Query("SELECT * FROM tracks ORDER BY dateAdded DESC LIMIT 50")
+    fun recentlyAdded(): Flow<List<TrackEntity>>
 
-    @androidx.room.Query("SELECT * FROM tracks ORDER BY dateAdded DESC LIMIT 50")
-    fun recentlyAdded(): kotlinx.coroutines.flow.Flow<List<TrackEntity>>
+    // @androidx.room.Query("SELECT * FROM tracks ORDER BY playCount DESC LIMIT 50")
+    fun mostPlayed(): Flow<List<TrackEntity>>
 
-    @androidx.room.Query("SELECT * FROM tracks ORDER BY playCount DESC LIMIT 50")
-    fun mostPlayed(): kotlinx.coroutines.flow.Flow<List<TrackEntity>>
+    // @androidx.room.Query("SELECT * FROM tracks WHERE isFavorite = 1 ORDER BY title ASC")
+    fun favorites(): Flow<List<TrackEntity>>
 
-    @androidx.room.Query("SELECT * FROM tracks WHERE isFavorite = 1 ORDER BY title ASC")
-    fun favorites(): kotlinx.coroutines.flow.Flow<List<TrackEntity>>
+    // @androidx.room.Query("SELECT * FROM tracks ORDER BY artist ASC, album ASC, title ASC")
+    fun allTracks(): Flow<List<TrackEntity>>
 
-    @androidx.room.Query("SELECT * FROM tracks ORDER BY artist ASC, album ASC, title ASC")
-    fun allTracks(): kotlinx.coroutines.flow.Flow<List<TrackEntity>>
+    // @androidx.room.Query("SELECT * FROM tracks WHERE title LIKE '%' || :q || '%' OR artist LIKE '%' || :q || '%' LIMIT 100")
+    fun search(q: String): Flow<List<TrackEntity>>
 
-    @androidx.room.Query("SELECT * FROM tracks WHERE title LIKE '%' || :q || '%' OR artist LIKE '%' || :q || '%' OR album LIKE '%' || :q || '%' LIMIT 100")
-    fun search(q: String): kotlinx.coroutines.flow.Flow<List<TrackEntity>>
-
-    @androidx.room.Upsert
+    // @androidx.room.Upsert
     suspend fun upsertAll(tracks: List<TrackEntity>)
 
-    @androidx.room.Query("UPDATE tracks SET playCount = playCount + 1, lastPlayedAt = :ts WHERE id = :id")
+    // @androidx.room.Query("UPDATE tracks SET playCount = playCount + 1, lastPlayedAt = :ts WHERE id = :id")
     suspend fun incrementPlayCount(id: Long, ts: Long = System.currentTimeMillis())
 
-    @androidx.room.Query("UPDATE tracks SET isFavorite = :fav WHERE id = :id")
+    // @androidx.room.Query("UPDATE tracks SET isFavorite = :fav WHERE id = :id")
     suspend fun setFavorite(id: Long, fav: Boolean)
-
-    @androidx.room.Query("DELETE FROM tracks WHERE id NOT IN (:activeIds)")
-    suspend fun removeStale(activeIds: List<Long>)
 }
 
-// ── Database ──────────────────────────────────────────────────────────────
+// ── Database (Phase 2: KSP generates the implementation) ─────────────────
 
 @Database(entities = [TrackEntity::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
