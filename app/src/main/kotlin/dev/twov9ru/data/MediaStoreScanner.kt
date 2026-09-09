@@ -30,6 +30,7 @@ object MediaStoreScanner {
         val durationMs:   Long,
         val dataUri:      Uri,
         val albumArtUri:  Uri?,
+        val absolutePath: String?,
         val dateAdded:    Long,
         val playCount:    Int = 0,
         val isFavorite:   Boolean = false
@@ -55,7 +56,8 @@ object MediaStoreScanner {
         MediaStore.Audio.Media.ALBUM_ID,
         MediaStore.Audio.Media.DURATION,
         MediaStore.Audio.Media.DATE_ADDED,
-        MediaStore.Audio.Media.MIME_TYPE
+        MediaStore.Audio.Media.MIME_TYPE,
+        MediaStore.Audio.Media.DATA
     )
 
     suspend fun scan(context: Context): List<Track> = withContext(Dispatchers.IO) {
@@ -82,6 +84,7 @@ object MediaStoreScanner {
             val albumIdCol   = it.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val durationCol  = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val dateCol      = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val dataCol      = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
             while (it.moveToNext()) {
                 val id      = it.getLong(idCol)
@@ -98,6 +101,7 @@ object MediaStoreScanner {
                     albumArtUri = ContentUris.withAppendedId(
                         Uri.parse("content://media/external/audio/albumart"), albumId
                     ),
+                    absolutePath = it.getString(dataCol),
                     dateAdded   = it.getLong(dateCol)
                 )
             }

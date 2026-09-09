@@ -3,6 +3,7 @@ package dev.twov9ru.data
 import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import android.os.Bundle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -33,6 +34,9 @@ class SmartPlaylistRepo(context: Context) {
                     .setArtist(track.artist)
                     .setAlbumTitle(track.album)
                     .setArtworkUri(track.albumArtUri?.let { android.net.Uri.parse(it) })
+                    .setExtras(Bundle().apply { 
+                        putString("absolutePath", track.absolutePath) 
+                    })
                     .setIsPlayable(true)
                     .build()
             )

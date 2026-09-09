@@ -30,6 +30,7 @@ class MediaStoreScannerWorker(
                     durationMs = raw.durationMs,
                     dataUri = raw.dataUri.toString(),
                     albumArtUri = raw.albumArtUri?.toString(),
+                    absolutePath = raw.absolutePath,
                     dateAdded = raw.dateAdded,
                     // Preserve playCount/isFavorite for existing tracks, default for new
                     playCount = 0,

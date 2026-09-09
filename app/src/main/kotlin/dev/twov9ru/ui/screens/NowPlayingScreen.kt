@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -35,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -73,6 +78,8 @@ fun NowPlayingScreen(
     onBack: () -> Unit
 ) {
     val state   by playerViewModel.playerState.collectAsState()
+    val lrcList by playerViewModel.lrcState.collectAsState()
+    val lrcIndex by playerViewModel.currentLrcLineIndex.collectAsState()
     val palette  = LocalDynamicPalette.current
 
     // Smooth ambient background crossfade between tracks
@@ -253,13 +260,58 @@ fun NowPlayingScreen(
 
             Spacer(Modifier.height(24.dp))
 
-            // ── Lyrics scroller placeholder (Phase 3: LRC parser) ─────────
-            Text(
-                text      = "Lyrics coming in Phase 3…",
-                style     = MaterialTheme.typography.bodyMedium,
-                color     = Ash.copy(alpha = 0.4f),
-                textAlign = TextAlign.Center
-            )
+            // ── Lyrics scroller ───────────────────────────────────────────
+            val listState = rememberLazyListState()
+            
+            LaunchedEffect(lrcIndex) {
+                if (lrcIndex >= 0 && lrcList.isNotEmpty()) {
+                    // Center the active line
+                    listState.animateScrollToItem(lrcIndex, scrollOffset = -200)
+                }
+            }
+
+            if (lrcList.isNotEmpty()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    item { Spacer(Modifier.height(40.dp)) }
+                    itemsIndexed(lrcList) { index, line ->
+                        val isActive = index == lrcIndex
+                        val color by animateColorAsState(
+                            targetValue = if (isActive) Snow else Ash.copy(alpha = 0.5f),
+                            label = "lrc_color"
+                        )
+                        val scale by animateFloatAsState(
+                            targetValue = if (isActive) 1.1f else 1.0f,
+                            label = "lrc_scale"
+                        )
+                        Text(
+                            text = line.text,
+                            style = if (isActive) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
+                            color = color,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .padding(vertical = 12.dp)
+                                .scale(scale)
+                                .clickable { playerViewModel.onSeekTo(line.timeMs) }
+                        )
+                    }
+                    item { Spacer(Modifier.height(80.dp)) }
+                }
+            } else {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        text      = "No lyrics found",
+                        style     = MaterialTheme.typography.bodyMedium,
+                        color     = Ash.copy(alpha = 0.4f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
         }
     }
 }

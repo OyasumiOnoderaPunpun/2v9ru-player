@@ -147,7 +147,12 @@ private fun FolderBrowserContent(
                         if (file.isDirectory) {
                             currentDir = file
                         } else {
-                            // Phase 2: queue file in playback service
+                            val audioFiles = entries.filter { !it.isDirectory }
+                            val index = audioFiles.indexOf(file)
+                            if (index >= 0) {
+                                playerViewModel.playFiles(audioFiles, index)
+                                onDismiss()
+                            }
                         }
                     }
                 )

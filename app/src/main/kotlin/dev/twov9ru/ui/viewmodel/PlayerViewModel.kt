@@ -27,6 +27,10 @@ import coil.request.SuccessResult
 import android.graphics.drawable.BitmapDrawable
 import androidx.palette.graphics.Palette
 import androidx.compose.ui.graphics.Color
+import dev.twov9ru.utils.LrcLine
+import dev.twov9ru.utils.LrcParser
+import java.io.File
+import android.net.Uri
 
 /** Minimal playback state fed to the UI layer */
 data class PlayerState(
@@ -74,6 +78,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private val _dspState = MutableStateFlow(DspState())
     val dspState: StateFlow<DspState> = _dspState.asStateFlow()
 
+    private val _lrcState = MutableStateFlow<List<LrcLine>>(emptyList())
+    val lrcState: StateFlow<List<LrcLine>> = _lrcState.asStateFlow()
+
+    private val _currentLrcLineIndex = MutableStateFlow(-1)
+    val currentLrcLineIndex: StateFlow<Int> = _currentLrcLineIndex.asStateFlow()
+
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
 
@@ -109,6 +119,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                         albumArtUri = newArtUri,
                         durationMs = mediaItem?.mediaMetadata?.extras?.getLong("durationMs") ?: mediaController?.duration?.takeIf { it > 0 } ?: 0L
                     )
+
+                    // LRC Parsing
+                    val absPath = metadata?.extras?.getString("absolutePath")
+                    if (absPath != null) {
+                        val audioFile = File(absPath)
+                        val lrcFile = File(audioFile.parentFile, audioFile.nameWithoutExtension + ".lrc")
+                        if (lrcFile.exists()) {
+                            _lrcState.value = LrcParser.parse(lrcFile)
+                        } else {
+                            _lrcState.value = emptyList()
+                        }
+                    } else {
+                        _lrcState.value = emptyList()
+                    }
+                    _currentLrcLineIndex.value = -1
                 }
             })
             
@@ -133,10 +158,21 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             while (isActive) {
                 mediaController?.let {
                     if (it.isPlaying) {
+                        val pos = it.currentPosition
                         _playerState.value = _playerState.value.copy(
-                            positionMs = it.currentPosition,
+                            positionMs = pos,
                             durationMs = it.duration.takeIf { d -> d > 0 } ?: 0L
                         )
+                        
+                        // Update LRC index
+                        val lrc = _lrcState.value
+                        if (lrc.isNotEmpty()) {
+                            var idx = lrc.indexOfLast { line -> line.timeMs <= pos }
+                            if (idx < 0) idx = -1
+                            if (_currentLrcLineIndex.value != idx) {
+                                _currentLrcLineIndex.value = idx
+                            }
+                        }
                     }
                 }
                 delay(500)
@@ -197,6 +233,26 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         mediaController?.setMediaItems(tracks, startIndex, 0L)
         mediaController?.prepare()
         mediaController?.play()
+    }
+
+    fun playFiles(files: List<File>, startIndex: Int = 0) {
+        val mediaItems = files.map { file ->
+            MediaItem.Builder()
+                .setMediaId(file.absolutePath)
+                .setUri(Uri.fromFile(file))
+                .setMediaMetadata(
+                    androidx.media3.common.MediaMetadata.Builder()
+                        .setTitle(file.nameWithoutExtension)
+                        .setArtist("Unknown Artist")
+                        .setIsPlayable(true)
+                        .setExtras(Bundle().apply {
+                            putString("absolutePath", file.absolutePath)
+                        })
+                        .build()
+                )
+                .build()
+        }
+        playTracks(mediaItems, startIndex)
     }
 
     fun onToggleFavorite() {

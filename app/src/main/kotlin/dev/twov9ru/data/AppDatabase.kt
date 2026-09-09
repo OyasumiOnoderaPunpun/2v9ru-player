@@ -28,6 +28,7 @@ data class TrackEntity(
     val durationMs:   Long,
     val dataUri:      String,
     val albumArtUri:  String?,
+    val absolutePath: String?,
     val dateAdded:    Long,
     val playCount:    Int     = 0,
     val isFavorite:   Boolean = false,
@@ -65,7 +66,7 @@ interface TrackDao {
 
 // ── Database ──────────────────────────────────────────────────────────────
 
-@Database(entities = [TrackEntity::class], version = 1, exportSchema = false)
+@Database(entities = [TrackEntity::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao
 
