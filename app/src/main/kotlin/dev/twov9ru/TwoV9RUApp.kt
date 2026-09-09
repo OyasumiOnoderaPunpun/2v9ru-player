@@ -6,7 +6,9 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.util.DebugLogger
-
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import dev.twov9ru.data.MediaStoreScannerWorker
 /**
  * Application class — configures Coil's global ImageLoader with:
  * - Memory cache capped at 20MB (well within the 30MB budget)
@@ -14,6 +16,14 @@ import coil.util.DebugLogger
  * - Disk cache for album art (avoids redundant MediaStore reads)
  */
 class TwoV9RUApp : Application(), ImageLoaderFactory {
+
+    override fun onCreate() {
+        super.onCreate()
+        
+        // Trigger one-time sync of MediaStore to Room
+        val scanWork = OneTimeWorkRequestBuilder<MediaStoreScannerWorker>().build()
+        WorkManager.getInstance(this).enqueue(scanWork)
+    }
 
     override fun newImageLoader(): ImageLoader =
         ImageLoader.Builder(this)

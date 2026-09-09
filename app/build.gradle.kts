@@ -2,8 +2,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
-  // KSP enabled in Phase 2 when Room DB is activated
-  // alias(libs.plugins.kotlin.ksp)
+  alias(libs.plugins.kotlin.ksp)
 }
 
 android {
@@ -44,6 +43,10 @@ kotlin {
     jvmToolchain(17)
 }
 
+ksp {
+    arg("room.generateKotlin", "true")
+}
+
 dependencies {
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
@@ -82,7 +85,7 @@ dependencies {
   // Room DB — KSP annotation processing enabled in Phase 2
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.room.ktx)
-  // ksp(libs.androidx.room.compiler)   // Phase 2: enable with KSP plugin
+  ksp(libs.androidx.room.compiler)
 
   // Palette
   implementation(libs.androidx.palette)

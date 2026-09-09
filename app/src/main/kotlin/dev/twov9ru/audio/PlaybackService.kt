@@ -8,35 +8,29 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.Virtualizer
 import android.os.Build
+import android.os.Bundle
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import dev.twov9ru.MainActivity
 
 private const val CHANNEL_ID      = "2v9ru_playback"
 private const val NOTIFICATION_ID  = 1001
 
-/**
- * Background playback service using Media3 [MediaSessionService].
- *
- * Responsibilities:
- * - Hosts the [ExoPlayer] instance configured via [AAudioSinkFactory]
- * - Exposes a [MediaSession] for OS media controls + Bluetooth keys
- * - Handles Audio Focus automatically (ExoPlayer built-in)
- * - Binds hardware AudioEffects (EQ / BassBoost / Virtualizer) to audio session
- * - Gapless playback enabled by default in ExoPlayer
- *
- * Phase 2 will add:
- * - [CrossfadeProcessor] audio processor
- * - Actual media source queueing from Room DB
- * - Sleep timer
- */
+@androidx.annotation.OptIn(UnstableApi::class)
 class PlaybackService : MediaSessionService() {
 
     private lateinit var player:       ExoPlayer
     private lateinit var mediaSession: MediaSession
+    private lateinit var crossfadeProcessor: CrossfadeProcessor
 
-    // Hardware-offloaded DSP effects (bound after player init)
+    // Hardware-offloaded DSP effects
     private var equalizer:   Equalizer?   = null
     private var bassBoost:   BassBoost?   = null
     private var virtualizer: Virtualizer? = null
@@ -45,10 +39,9 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         createNotificationChannel()
 
-        // Build player via our factory (AAudio path, audio focus managed)
-        player = AAudioSinkFactory.buildExoPlayer(this)
+        crossfadeProcessor = CrossfadeProcessor()
+        player = AAudioSinkFactory.buildExoPlayer(this, crossfadeProcessor)
 
-        // Wire hardware effects to the audio session
         val sessionId = player.audioSessionId
         if (sessionId != 0) {
             equalizer   = runCatching { Equalizer(0, sessionId).also   { it.enabled = false } }.getOrNull()
@@ -58,6 +51,7 @@ class PlaybackService : MediaSessionService() {
 
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(buildSessionPendingIntent())
+            .setCallback(CustomMediaSessionCallback())
             .build()
     }
 
@@ -72,29 +66,45 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
-    // ── EQ control (called from DSP sheet via IPC in Phase 2) ─────────────
-    fun setEqBandLevel(band: Int, levelMilliBel: Short) {
-        equalizer?.let {
-            it.enabled = true
-            it.setBandLevel(band.toShort(), levelMilliBel)
+    private inner class CustomMediaSessionCallback : MediaSession.Callback {
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle
+        ): ListenableFuture<SessionResult> {
+            when (customCommand.customAction) {
+                "SET_EQ_BAND" -> {
+                    val band = args.getInt("band")
+                    val level = args.getShort("level")
+                    equalizer?.let {
+                        it.enabled = true
+                        it.setBandLevel(band.toShort(), level)
+                    }
+                }
+                "SET_BASS_BOOST" -> {
+                    val strength = args.getShort("strength")
+                    bassBoost?.let {
+                        it.enabled = true
+                        it.setStrength(strength)
+                    }
+                }
+                "SET_VIRTUALIZER" -> {
+                    val strength = args.getShort("strength")
+                    virtualizer?.let {
+                        it.enabled = true
+                        it.setStrength(strength)
+                    }
+                }
+                "SET_CROSSFADE" -> {
+                    val durationMs = args.getInt("durationMs")
+                    crossfadeProcessor.crossfadeDurationMs = durationMs
+                }
+            }
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
         }
     }
 
-    fun setBassBoostStrength(strength: Short) {
-        bassBoost?.let {
-            it.enabled = true
-            it.setStrength(strength)
-        }
-    }
-
-    fun setVirtualizerStrength(strength: Short) {
-        virtualizer?.let {
-            it.enabled = true
-            it.setStrength(strength)
-        }
-    }
-
-    // ── Notification channel ───────────────────────────────────────────────
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
