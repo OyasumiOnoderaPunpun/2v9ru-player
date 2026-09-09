@@ -7,6 +7,8 @@
 [![Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?logo=jetpack-compose)](https://developer.android.com/jetpack/compose)
 [![Media3](https://img.shields.io/badge/Audio-Media3%2FExoPlayer-FF6D00)](https://developer.android.com/guide/topics/media/media3)
 
+> 🚀 **[Download the latest APK here](https://github.com/OyasumiOnoderaPunpun/2v9ru-player/releases)** (Built automatically via GitHub Actions)
+
 ---
 
 ## What is 2V9RU?
@@ -114,6 +116,6 @@ app/
 
 ## Roadmap
 - [x] Phase 1: Foundation, Brand Shell & Adaptive Geometry
-- [ ] Phase 2: Audio Engine, MediaStore Scanner, Room DB, Hardware EQ binding
-- [ ] Phase 3: Palette → Mesh Gradient, 60fps Squiggly Seek Bar, LRC Lyrics
-- [ ] Phase 4: Memory profiling, Sleep Timer, Notification polish
+- [x] Phase 2: Audio Engine, MediaStore Scanner, Room DB, Hardware EQ binding
+- [x] Phase 3: Palette → Mesh Gradient, Interactive Nexus UI
+- [x] Phase 4: Gapless Folder Browsing, LrcParser & Auto-Scrolling Lyrics
